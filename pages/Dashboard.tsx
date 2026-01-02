@@ -11,65 +11,59 @@ export const Dashboard: React.FC = () => {
 
   const relevantProjects = currentUser.role === UserRole.ADMIN 
     ? projects 
-    : currentUser.role === UserRole.CLIENT 
-      ? projects.filter(p => p.clientId === currentUser.id)
-      : projects.filter(p => p.memberIds.includes(currentUser.id));
+    : projects.filter(p => p.memberIds.includes(currentUser.id) || p.clientId === currentUser.id);
+
+  const activeTasks = tasks.filter(t => 
+    relevantProjects.some(rp => rp.id === t.projectId) && t.status !== TaskStatus.COMPLETED
+  );
 
   const stats = [
-    { name: 'Active Projects', value: relevantProjects.length, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { name: 'Total Tasks', value: tasks.filter(t => relevantProjects.some(rp => rp.id === t.projectId)).length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { name: 'Due this week', value: 4, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { label: 'Active Projects', value: relevantProjects.length, color: 'text-blue-600' },
+    { label: 'Pending Tasks', value: activeTasks.length, color: 'text-amber-600' },
+    { label: 'Upcoming Deadlines', value: tasks.filter(t => new Date(t.dueDate) > new Date()).length, color: 'text-indigo-600' },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Hello, {currentUser.name.split(' ')[0]}! 👋</h1>
-        <p className="text-slate-500 mt-1">Here is what's happening in Woody today.</p>
-      </div>
+    <div className="max-w-7xl mx-auto py-6 animate-in fade-in duration-500">
+      <header className="mb-10">
+        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Good day, {currentUser.name.split(' ')[0]}</h1>
+        <p className="text-slate-500 mt-2 font-medium">Woody overview for today.</p>
+      </header>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         {stats.map((s) => (
-          <div key={s.name} className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-            <p className="text-sm font-medium text-slate-500">{s.name}</p>
-            <p className={`text-4xl font-bold mt-2 ${s.color}`}>{s.value}</p>
+          <div key={s.label} className="bg-white border border-slate-100 p-8 rounded-[32px] shadow-sm hover:shadow-md transition-shadow">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{s.label}</p>
+            <p className={`text-5xl font-extrabold mt-3 ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Project List */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recent Projects</h2>
-            <Link to="/projects" className="text-indigo-600 text-sm font-medium hover:underline">View All</Link>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold text-slate-800">Your Projects</h2>
+            <Link to="/projects" className="text-sm font-bold text-blue-600 hover:underline">View All</Link>
           </div>
-          <div className="space-y-4">
-            {relevantProjects.slice(0, 4).map(project => {
-              const projectTasks = tasks.filter(t => t.projectId === project.id);
-              const completed = projectTasks.filter(t => t.status === TaskStatus.COMPLETED).length;
-              const progress = projectTasks.length ? Math.round((completed / projectTasks.length) * 100) : 0;
-              
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {relevantProjects.slice(0, 4).map(p => {
+              const pTasks = tasks.filter(t => t.projectId === p.id);
+              const progress = pTasks.length ? Math.round((pTasks.filter(t => t.status === TaskStatus.COMPLETED).length / pTasks.length) * 100) : 0;
               return (
-                <Link key={project.id} to={`/projects/${project.id}`} className="block p-4 rounded-2xl border border-slate-50 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-all group">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold text-slate-800 dark:text-white group-hover:text-indigo-600 transition-colors">{project.name}</h3>
-                      <p className="text-xs text-slate-400 mt-1">{project.clientName}</p>
+                <Link key={p.id} to={`/projects/${p.id}`} className="group bg-slate-50 border border-slate-100 p-6 rounded-[28px] hover:bg-white hover:border-blue-100 hover:shadow-lg transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.clientName}</span>
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
+                  <div className="mt-6">
+                    <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase">
+                      <span>Progress</span>
+                      <span>{progress}%</span>
                     </div>
-                    <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${
-                      project.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {project.status}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
-                    <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
-                  </div>
-                  <div className="flex justify-between mt-2">
-                    <p className="text-[10px] text-slate-400 font-medium">{progress}% Complete</p>
-                    <p className="text-[10px] text-slate-400 font-medium">{completed}/{projectTasks.length} Tasks</p>
+                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-blue-600 h-full rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                    </div>
                   </div>
                 </Link>
               );
@@ -77,32 +71,20 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Tasks Section */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Upcoming Deadlines</h2>
-            <span className="bg-orange-50 text-orange-600 text-[10px] uppercase font-bold px-2 py-1 rounded-full">Priority</span>
-          </div>
-          <div className="space-y-4">
-            {tasks
-              .filter(t => t.status !== TaskStatus.COMPLETED && relevantProjects.some(rp => rp.id === t.projectId))
-              .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-              .slice(0, 4)
-              .map(task => (
-                <div key={task.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-transparent">
-                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex flex-col items-center justify-center text-slate-400 shadow-sm">
-                    <span className="text-[10px] font-bold uppercase">{new Date(task.dueDate).toLocaleString('en-US', { month: 'short' })}</span>
-                    <span className="text-sm font-bold text-slate-700 dark:text-white">{new Date(task.dueDate).getDate()}</span>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-800 dark:text-white text-sm">{task.title}</h4>
-                    <p className="text-xs text-slate-400">{projects.find(p => p.id === task.projectId)?.name}</p>
-                  </div>
-                  <div className={`w-2 h-2 rounded-full ${
-                    task.status === TaskStatus.IN_PROGRESS ? 'bg-indigo-500' : 'bg-orange-400'
-                  }`}></div>
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-slate-800">Next Actions</h2>
+          <div className="space-y-3">
+            {activeTasks.slice(0, 5).map(t => (
+              <div key={t.id} className="p-5 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-slate-50 transition-colors cursor-pointer">
+                <div>
+                  <p className="font-semibold text-sm text-slate-900">{t.title}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t.dueDate}</p>
                 </div>
-              ))}
+                <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center group-hover:bg-white group-hover:border-blue-500 transition-all">
+                  <svg className="w-3 h-3 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 13l4 4L19 7" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

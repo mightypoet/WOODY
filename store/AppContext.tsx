@@ -1,9 +1,25 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { AppState, User, UserRole, Project, Task, TaskStatus, ContentPost, ProjectStatus } from '../types';
 
+const firebaseConfig = {
+  apiKey: "AIzaSyDQ-414RHU1aO49rMGgzUuVRxUUJCbaUEA",
+  authDomain: "woody-66f57.firebaseapp.com",
+  projectId: "woody-66f57",
+  storageBucket: "woody-66f57.firebasestorage.app",
+  messagingSenderId: "820455609658",
+  appId: "1:820455609658:web:a44758acd991c209e36c03",
+  measurementId: "G-MF3SMRBJKB"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
 interface AppContextType extends AppState {
-  login: (email: string) => Promise<void>;
+  login: () => Promise<void>;
   logout: () => void;
   addProject: (p: Partial<Project>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -18,72 +34,93 @@ interface AppContextType extends AppState {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Initial Static Data
 const INITIAL_USERS: User[] = [
-  { id: 'u1', email: 'reelywood@gmail.com', name: 'Woody Admin', avatar: 'https://picsum.photos/200/200?random=1', role: UserRole.ADMIN, active: true, lastLogin: new Date().toISOString(), assignedProjects: [] },
-  { id: 'u2', email: 'editor1@woody.io', name: 'Alex Editor', avatar: 'https://picsum.photos/200/200?random=2', role: UserRole.EDITOR, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1', 'p2'] },
-  { id: 'u3', email: 'client@brand.com', name: 'Jane Client', avatar: 'https://picsum.photos/200/200?random=3', role: UserRole.CLIENT, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1', 'p2'] },
-  { id: 'u4', email: 'editor2@woody.io', name: 'Sam Creative', avatar: 'https://picsum.photos/200/200?random=4', role: UserRole.EDITOR, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1'] },
+  { id: 'u1', email: 'rohan00as@gmail.com', name: 'Rohan Admin', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan', role: UserRole.ADMIN, active: true, lastLogin: new Date().toISOString(), assignedProjects: [] },
+  { id: 'u2', email: 'editor@woody.agency', name: 'Sarah Editor', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah', role: UserRole.EDITOR, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1'] },
+  { id: 'u3', email: 'client@brand.com', name: 'Mark Client', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mark', role: UserRole.CLIENT, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1'] },
 ];
 
 const INITIAL_PROJECTS: Project[] = [
-  { id: 'p1', name: 'Summer Campaign 2024', clientId: 'u3', clientName: 'Brand Co.', memberIds: ['u2', 'u4'], status: ProjectStatus.ACTIVE, timeline: { start: '2024-06-01', end: '2024-08-30' }, budget: { total: 15000, received: 5000 } },
-  { id: 'p2', name: 'Social Media Strategy', clientId: 'u3', clientName: 'Brand Co.', memberIds: ['u2'], status: ProjectStatus.PLANNING, timeline: { start: '2024-07-15', end: '2024-12-15' }, budget: { total: 8000, received: 2000 } },
+  { 
+    id: 'p1', 
+    name: 'Brand Refresh 2025', 
+    clientId: 'u3', 
+    clientName: 'Global Brand Corp', 
+    memberIds: ['u2'], 
+    status: ProjectStatus.ACTIVE, 
+    timeline: { start: '2025-01-01', end: '2025-06-01' }, 
+    budget: { 
+      total: 25000, 
+      received: 10000, 
+      breakdown: [
+        { id: 'b1', label: 'Design Phase', value: 8000 },
+        { id: 'b2', label: 'Content Production', value: 12000 },
+        { id: 'b3', label: 'Marketing Spend', value: 5000 }
+      ] 
+    } 
+  },
 ];
 
 const INITIAL_TASKS: Task[] = [
-  { id: 't1', projectId: 'p1', title: 'Brainstorm Reels', description: 'Ideate for 30 high engagement reels', assignedEditorId: 'u2', dueDate: '2024-06-15', status: TaskStatus.COMPLETED, value: 500 },
-  { id: 't2', projectId: 'p1', title: 'Filming Session 1', description: 'On-site filming with talent', assignedEditorId: 'u2', dueDate: '2024-06-20', status: TaskStatus.IN_PROGRESS, value: 1200 },
-];
-
-const INITIAL_POSTS: ContentPost[] = [
-  { id: 'cp1', projectId: 'p1', title: 'Match Stories Reel', date: '2024-06-10', platform: 'Instagram', status: 'Published', editorId: 'u2' },
-  { id: 'cp2', projectId: 'p1', title: 'Summer Vibe Check', date: '2024-06-12', platform: 'TikTok', status: 'Scheduled', editorId: 'u2' },
+  { id: 't1', projectId: 'p1', title: 'Logo Concepts', description: 'Create 3 main brand identity routes', assignedEditorId: 'u2', dueDate: '2025-03-20', status: TaskStatus.IN_PROGRESS, value: 3000 },
+  { id: 't2', projectId: 'p1', title: 'Brand Guidelines', description: 'Finalize typography and color rules', assignedEditorId: 'u2', dueDate: '2025-04-10', status: TaskStatus.TODO, value: 5000 },
 ];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [contentPosts, setContentPosts] = useState<ContentPost[]>(INITIAL_POSTS);
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('woody_users') || JSON.stringify(INITIAL_USERS)));
+  const [projects, setProjects] = useState<Project[]>(() => JSON.parse(localStorage.getItem('woody_projects') || JSON.stringify(INITIAL_PROJECTS)));
+  const [tasks, setTasks] = useState<Task[]>(() => JSON.parse(localStorage.getItem('woody_tasks') || JSON.stringify(INITIAL_TASKS)));
+  const [contentPosts, setContentPosts] = useState<ContentPost[]>(() => JSON.parse(localStorage.getItem('woody_posts') || '[]'));
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('woody_user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      const freshUser = users.find(u => u.id === parsed.id);
-      if (freshUser && freshUser.active) setCurrentUser(freshUser);
-    }
+    localStorage.setItem('woody_users', JSON.stringify(users));
+    localStorage.setItem('woody_projects', JSON.stringify(projects));
+    localStorage.setItem('woody_tasks', JSON.stringify(tasks));
+    localStorage.setItem('woody_posts', JSON.stringify(contentPosts));
+  }, [users, projects, tasks, contentPosts]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        let user = users.find(u => u.email === firebaseUser.email);
+        if (!user) {
+          // Auto-register as Editor unless it's the super admin
+          user = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            name: firebaseUser.displayName || 'Anonymous User',
+            avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+            role: firebaseUser.email === 'rohan00as@gmail.com' ? UserRole.ADMIN : UserRole.EDITOR,
+            active: true,
+            lastLogin: new Date().toISOString(),
+            assignedProjects: [],
+          };
+          setUsers(prev => [...prev, user!]);
+        } else if (!user.active) {
+          signOut(auth);
+          alert("Account is suspended.");
+          return;
+        }
+        setCurrentUser(user);
+      } else {
+        setCurrentUser(null);
+      }
+    });
+    return () => unsubscribe();
   }, [users]);
 
-  const login = async (email: string) => {
-    const user = users.find(u => u.email === email);
-    if (user) {
-      if (!user.active) throw new Error('Account suspended');
-      const updated = { ...user, lastLogin: new Date().toISOString() };
-      updateUser(user.id, updated);
-      setCurrentUser(updated);
-      localStorage.setItem('woody_user', JSON.stringify(updated));
-    } else {
-      const newUser: User = {
-        id: `u${Date.now()}`,
-        email,
-        name: email.split('@')[0],
-        avatar: `https://picsum.photos/200/200?random=${Date.now()}`,
-        role: email === 'reelywood@gmail.com' ? UserRole.ADMIN : UserRole.EDITOR,
-        active: true,
-        lastLogin: new Date().toISOString(),
-        assignedProjects: [],
-      };
-      setUsers(prev => [...prev, newUser]);
-      setCurrentUser(newUser);
-      localStorage.setItem('woody_user', JSON.stringify(newUser));
+  const login = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login failed", error);
     }
   };
 
   const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('woody_user');
+    signOut(auth);
   };
 
   const updateUser = (id: string, updates: Partial<User>) => {
@@ -94,12 +131,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newProject: Project = {
       id: `p${Date.now()}`,
       name: p.name || 'New Project',
-      clientId: p.clientId || 'u3',
-      clientName: p.clientName || 'Unassigned Client',
+      clientId: p.clientId || '',
+      clientName: p.clientName || 'Unassigned',
       memberIds: p.memberIds || [],
       status: ProjectStatus.PLANNING,
       timeline: p.timeline || { start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] },
-      budget: p.budget || { total: 0, received: 0 },
+      budget: p.budget || { total: 0, received: 0, breakdown: [] },
     };
     setProjects(prev => [...prev, newProject]);
   };
@@ -134,12 +171,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newPost: ContentPost = {
       id: `cp${Date.now()}`,
       projectId: cp.projectId || '',
-      title: cp.title || 'New Content Piece',
+      title: cp.title || 'Post Idea',
       date: cp.date || new Date().toISOString().split('T')[0],
       platform: cp.platform || 'Instagram',
-      status: cp.status || 'Draft',
+      status: cp.status || 'Pending',
       editorId: cp.editorId || '',
-      taskId: cp.taskId,
     };
     setContentPosts(prev => [...prev, newPost]);
   };

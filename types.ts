@@ -13,7 +13,7 @@ export interface User {
   role: UserRole;
   active: boolean;
   lastLogin: string;
-  assignedProjects: string[]; // IDs of projects this user is involved in
+  assignedProjects: string[]; // Projects the user has access to
 }
 
 export enum ProjectStatus {
@@ -21,6 +21,18 @@ export enum ProjectStatus {
   ACTIVE = 'Active',
   ON_HOLD = 'On Hold',
   COMPLETED = 'Completed'
+}
+
+export interface BudgetBreakdown {
+  id: string;
+  label: string;
+  value: number;
+}
+
+export interface ProjectBudget {
+  total: number;
+  received: number;
+  breakdown: BudgetBreakdown[];
 }
 
 export interface Project {
@@ -34,10 +46,7 @@ export interface Project {
     start: string;
     end: string;
   };
-  budget: {
-    total: number;
-    received: number;
-  };
+  budget: ProjectBudget;
 }
 
 export enum TaskStatus {
@@ -55,18 +64,17 @@ export interface Task {
   assignedEditorId: string;
   dueDate: string;
   status: TaskStatus;
-  value: number; 
+  value: number; // Linked to budget progress
 }
 
 export interface ContentPost {
   id: string;
   projectId: string;
+  title: string;
   date: string;
-  platform: 'Instagram' | 'LinkedIn' | 'YouTube' | 'X' | 'TikTok';
-  status: 'Draft' | 'Scheduled' | 'Published' | 'Failed';
+  platform: 'Instagram' | 'LinkedIn' | 'YouTube' | 'X' | 'TikTok' | 'Facebook';
+  status: 'Scheduled' | 'Done' | 'Pending';
   editorId: string;
-  taskId?: string;
-  title?: string;
 }
 
 export interface AppState {

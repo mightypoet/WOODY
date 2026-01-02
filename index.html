@@ -4,46 +4,61 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Woody | Modern Task Management</title>
+    <title>Woody | Agency Task Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --google-gray: #f8f9fa;
+        --google-blue: #1a73e8;
+      }
       body {
+        font-family: 'Inter', sans-serif;
+        background-color: #ffffff;
+        color: #1f1f1f;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, h4, .font-display {
         font-family: 'Plus Jakarta Sans', sans-serif;
-        background-color: #f8fafc;
-        transition: background-color 0.3s ease;
       }
-      .dark body {
-        background-color: #0f172a;
+      .glass {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
       }
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
       }
-      ::-webkit-scrollbar-track {
-        background: transparent;
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 10px;
+      .kanban-column {
+        min-height: calc(100vh - 250px);
       }
-      .dark ::-webkit-scrollbar-thumb {
-        background: #334155;
+      .transition-layout {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      input, select, textarea {
+        outline: none !important;
       }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0"
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
   </body>

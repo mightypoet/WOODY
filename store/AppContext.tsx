@@ -20,6 +20,7 @@ const provider = new GoogleAuthProvider();
 
 interface AppContextType extends AppState {
   login: () => Promise<void>;
+  loginByEmail: (email: string) => Promise<void>;
   logout: () => void;
   addProject: (p: Partial<Project>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -84,43 +85,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        let user = users.find(u => u.email === firebaseUser.email);
-        if (!user) {
-          // Auto-register as Editor unless it's the super admin
-          user = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            name: firebaseUser.displayName || 'Anonymous User',
-            avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
-            role: firebaseUser.email === 'rohan00as@gmail.com' ? UserRole.ADMIN : UserRole.EDITOR,
-            active: true,
-            lastLogin: new Date().toISOString(),
-            assignedProjects: [],
-          };
-          setUsers(prev => [...prev, user!]);
-        } else if (!user.active) {
-          signOut(auth);
-          alert("Account is suspended.");
-          return;
-        }
-        setCurrentUser(user);
+        syncUser(firebaseUser.email!, firebaseUser.displayName, firebaseUser.photoURL, firebaseUser.uid);
       } else {
-        setCurrentUser(null);
+        // Fallback for manual session persistence
+        const savedSession = localStorage.getItem('woody_current_user_id');
+        if (savedSession) {
+          const user = users.find(u => u.id === savedSession);
+          if (user && user.active) setCurrentUser(user);
+        } else {
+          setCurrentUser(null);
+        }
       }
     });
     return () => unsubscribe();
   }, [users]);
 
+  const syncUser = (email: string, name: string | null, avatar: string | null, id: string) => {
+    let user = users.find(u => u.email === email);
+    if (!user) {
+      user = {
+        id: id || `u${Date.now()}`,
+        email: email,
+        name: name || email.split('@')[0],
+        avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+        role: email === 'rohan00as@gmail.com' ? UserRole.ADMIN : UserRole.EDITOR,
+        active: true,
+        lastLogin: new Date().toISOString(),
+        assignedProjects: [],
+      };
+      setUsers(prev => [...prev, user!]);
+    } else if (!user.active) {
+      signOut(auth);
+      localStorage.removeItem('woody_current_user_id');
+      throw new Error('Account suspended');
+    }
+    
+    setCurrentUser(user);
+    localStorage.setItem('woody_current_user_id', user.id);
+  };
+
   const login = async () => {
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        syncUser(result.user.email!, result.user.displayName, result.user.photoURL, result.user.uid);
+      }
+    } catch (error: any) {
       console.error("Login failed", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        throw new Error('Firebase Auth: This domain is not authorized. Please add it to Authorized Domains in Firebase Console, or use Manual Login.');
+      }
+      throw error;
     }
+  };
+
+  const loginByEmail = async (email: string) => {
+    // Simulated manual login for environments where Google Auth domain is restricted
+    syncUser(email, null, null, `u_manual_${Date.now()}`);
   };
 
   const logout = () => {
     signOut(auth);
+    setCurrentUser(null);
+    localStorage.removeItem('woody_current_user_id');
   };
 
   const updateUser = (id: string, updates: Partial<User>) => {
@@ -191,7 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{
       currentUser, projects, tasks, users, contentPosts,
-      login, logout, addProject, updateProject, addTask, updateTask, deleteTask, 
+      login, loginByEmail, logout, addProject, updateProject, addTask, updateTask, deleteTask, 
       addContentPost, updateContentPost, deleteContentPost, updateUser
     }}>
       {children}

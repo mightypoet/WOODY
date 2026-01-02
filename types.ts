@@ -11,6 +11,9 @@ export interface User {
   name: string;
   avatar: string;
   role: UserRole;
+  active: boolean;
+  lastLogin: string;
+  assignedProjects: string[]; // IDs of projects this user is involved in
 }
 
 export enum ProjectStatus {
@@ -52,7 +55,7 @@ export interface Task {
   assignedEditorId: string;
   dueDate: string;
   status: TaskStatus;
-  value: number; // For budget tracking
+  value: number; 
 }
 
 export interface ContentPost {
@@ -63,6 +66,7 @@ export interface ContentPost {
   status: 'Draft' | 'Scheduled' | 'Published' | 'Failed';
   editorId: string;
   taskId?: string;
+  title?: string;
 }
 
 export interface AppState {

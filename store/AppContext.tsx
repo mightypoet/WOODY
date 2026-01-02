@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppState, User, UserRole, Project, Task, TaskStatus, ContentPost, ProjectStatus } from '../types';
 
 interface AppContextType extends AppState {
@@ -12,50 +12,32 @@ interface AppContextType extends AppState {
   deleteTask: (id: string) => void;
   addContentPost: (cp: Partial<ContentPost>) => void;
   updateContentPost: (id: string, updates: Partial<ContentPost>) => void;
+  deleteContentPost: (id: string) => void;
+  updateUser: (id: string, updates: Partial<User>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const INITIAL_USERS: User[] = [
-  { id: 'u1', email: 'reelywood@gmail.com', name: 'Woody Admin', avatar: 'https://picsum.photos/200/200?random=1', role: UserRole.ADMIN },
-  { id: 'u2', email: 'editor1@woody.io', name: 'Alex Editor', avatar: 'https://picsum.photos/200/200?random=2', role: UserRole.EDITOR },
-  { id: 'u3', email: 'client@brand.com', name: 'Jane Client', avatar: 'https://picsum.photos/200/200?random=3', role: UserRole.CLIENT },
-  { id: 'u4', email: 'editor2@woody.io', name: 'Sam Creative', avatar: 'https://picsum.photos/200/200?random=4', role: UserRole.EDITOR },
+  { id: 'u1', email: 'reelywood@gmail.com', name: 'Woody Admin', avatar: 'https://picsum.photos/200/200?random=1', role: UserRole.ADMIN, active: true, lastLogin: new Date().toISOString(), assignedProjects: [] },
+  { id: 'u2', email: 'editor1@woody.io', name: 'Alex Editor', avatar: 'https://picsum.photos/200/200?random=2', role: UserRole.EDITOR, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1', 'p2'] },
+  { id: 'u3', email: 'client@brand.com', name: 'Jane Client', avatar: 'https://picsum.photos/200/200?random=3', role: UserRole.CLIENT, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1', 'p2'] },
+  { id: 'u4', email: 'editor2@woody.io', name: 'Sam Creative', avatar: 'https://picsum.photos/200/200?random=4', role: UserRole.EDITOR, active: true, lastLogin: new Date().toISOString(), assignedProjects: ['p1'] },
 ];
 
 const INITIAL_PROJECTS: Project[] = [
-  { 
-    id: 'p1', 
-    name: 'Summer Campaign 2024', 
-    clientId: 'u3', 
-    clientName: 'Brand Co.', 
-    memberIds: ['u2', 'u4'], 
-    status: ProjectStatus.ACTIVE,
-    timeline: { start: '2024-06-01', end: '2024-08-30' },
-    budget: { total: 15000, received: 5000 }
-  },
-  { 
-    id: 'p2', 
-    name: 'Social Media Strategy', 
-    clientId: 'u3', 
-    clientName: 'Brand Co.', 
-    memberIds: ['u2'], 
-    status: ProjectStatus.PLANNING,
-    timeline: { start: '2024-07-15', end: '2024-12-15' },
-    budget: { total: 8000, received: 2000 }
-  },
+  { id: 'p1', name: 'Summer Campaign 2024', clientId: 'u3', clientName: 'Brand Co.', memberIds: ['u2', 'u4'], status: ProjectStatus.ACTIVE, timeline: { start: '2024-06-01', end: '2024-08-30' }, budget: { total: 15000, received: 5000 } },
+  { id: 'p2', name: 'Social Media Strategy', clientId: 'u3', clientName: 'Brand Co.', memberIds: ['u2'], status: ProjectStatus.PLANNING, timeline: { start: '2024-07-15', end: '2024-12-15' }, budget: { total: 8000, received: 2000 } },
 ];
 
 const INITIAL_TASKS: Task[] = [
   { id: 't1', projectId: 'p1', title: 'Brainstorm Reels', description: 'Ideate for 30 high engagement reels', assignedEditorId: 'u2', dueDate: '2024-06-15', status: TaskStatus.COMPLETED, value: 500 },
   { id: 't2', projectId: 'p1', title: 'Filming Session 1', description: 'On-site filming with talent', assignedEditorId: 'u2', dueDate: '2024-06-20', status: TaskStatus.IN_PROGRESS, value: 1200 },
-  { id: 't3', projectId: 'p1', title: 'Color Grading', description: 'Grade the batch 1 footage', assignedEditorId: 'u4', dueDate: '2024-06-25', status: TaskStatus.TODO, value: 800 },
-  { id: 't4', projectId: 'p1', title: 'Audio Sourcing', description: 'Find trending tracks for reels', assignedEditorId: 'u4', dueDate: '2024-06-18', status: TaskStatus.REVIEW, value: 300 },
 ];
 
 const INITIAL_POSTS: ContentPost[] = [
-  { id: 'cp1', projectId: 'p1', date: '2024-06-10', platform: 'Instagram', status: 'Published', editorId: 'u2' },
-  { id: 'cp2', projectId: 'p1', date: '2024-06-12', platform: 'TikTok', status: 'Scheduled', editorId: 'u2' },
+  { id: 'cp1', projectId: 'p1', title: 'Match Stories Reel', date: '2024-06-10', platform: 'Instagram', status: 'Published', editorId: 'u2' },
+  { id: 'cp2', projectId: 'p1', title: 'Summer Vibe Check', date: '2024-06-12', platform: 'TikTok', status: 'Scheduled', editorId: 'u2' },
 ];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -65,26 +47,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [contentPosts, setContentPosts] = useState<ContentPost[]>(INITIAL_POSTS);
 
-  // Persistence simulation
   useEffect(() => {
     const savedUser = localStorage.getItem('woody_user');
-    if (savedUser) setCurrentUser(JSON.parse(savedUser));
-  }, []);
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      const freshUser = users.find(u => u.id === parsed.id);
+      if (freshUser && freshUser.active) setCurrentUser(freshUser);
+    }
+  }, [users]);
 
   const login = async (email: string) => {
-    // Simulating Google Auth behavior
     const user = users.find(u => u.email === email);
     if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('woody_user', JSON.stringify(user));
+      if (!user.active) throw new Error('Account suspended');
+      const updated = { ...user, lastLogin: new Date().toISOString() };
+      updateUser(user.id, updated);
+      setCurrentUser(updated);
+      localStorage.setItem('woody_user', JSON.stringify(updated));
     } else {
-      // Create new user for unknown email
       const newUser: User = {
         id: `u${Date.now()}`,
         email,
         name: email.split('@')[0],
         avatar: `https://picsum.photos/200/200?random=${Date.now()}`,
         role: email === 'reelywood@gmail.com' ? UserRole.ADMIN : UserRole.EDITOR,
+        active: true,
+        lastLogin: new Date().toISOString(),
+        assignedProjects: [],
       };
       setUsers(prev => [...prev, newUser]);
       setCurrentUser(newUser);
@@ -95,6 +84,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('woody_user');
+  };
+
+  const updateUser = (id: string, updates: Partial<User>) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
   };
 
   const addProject = (p: Partial<Project>) => {
@@ -141,6 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newPost: ContentPost = {
       id: `cp${Date.now()}`,
       projectId: cp.projectId || '',
+      title: cp.title || 'New Content Piece',
       date: cp.date || new Date().toISOString().split('T')[0],
       platform: cp.platform || 'Instagram',
       status: cp.status || 'Draft',
@@ -154,10 +148,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setContentPosts(prev => prev.map(cp => cp.id === id ? { ...cp, ...updates } : cp));
   };
 
+  const deleteContentPost = (id: string) => {
+    setContentPosts(prev => prev.filter(cp => cp.id !== id));
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, projects, tasks, users, contentPosts,
-      login, logout, addProject, updateProject, addTask, updateTask, deleteTask, addContentPost, updateContentPost
+      login, logout, addProject, updateProject, addTask, updateTask, deleteTask, 
+      addContentPost, updateContentPost, deleteContentPost, updateUser
     }}>
       {children}
     </AppContext.Provider>

@@ -1,0 +1,8 @@
+{
+  "name": "Woody",
+  "description": "A modern, Google Labs-inspired task, content, and budget management platform for agencies and teams with RBAC and real-time feel.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
